@@ -1,5 +1,7 @@
+import uuid
+import json
+
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
-from src.config import config
 
 
 class CosmosDB:
@@ -47,10 +49,10 @@ class CosmosDB:
         }
         return indexing_policy
 
-    try:
-        def create_container(self):
-            if not self.database:
-                self.create_database()
+    def create_container(self):
+        if not self.database:
+            self.create_database()
+        try:
             vector_policy = self.create_vector_embedding_policy()
             indexing_policy = self.create_indexing_policy()
             
@@ -60,15 +62,44 @@ class CosmosDB:
                 indexing_policy=indexing_policy,
                 vector_embedding_policy=vector_policy,
                 offer_throughput=400  # 専用スループットを設定
-
             )
-    except exceptions.CosmosHttpResponseError:
-        raise
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"Failed to create container: {e}")
+            raise
 
-    def initialize(self):
+    def create_item(self, content, content_vector):
+        item = {
+            'id': str(uuid.uuid4()),
+            'content': content,
+            'contentvector': content_vector
+        }
+        try:
+            self.container.create_item(body=item)
+            print("Item created")
+        except exceptions.CosmosHttpResponseError as e:
+            print(f"Failed to create item: {e}")
+            raise
+
+    def vector_search(self, query_vector):
+        if not self.container:
+            self.create_container()
+        query = """
+        SELECT c.id, c.content, VectorDistance(c.contentvector, @query_vector) AS SimilarityScore
+        FROM c
+        """
+        parameters = [
+            {"name": "@query_vector", "value": query_vector}
+        ]
+
+        search_results = self.container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        )
+        print("search_results: ", search_results)
+        results = [ item for item in search_results]
+        return json.dumps(results, indent=True)
+
+    def container_initialize(self):
         self.create_container()
         print("CosmosDB initialized")
-
-if __name__ == '__main__':
-    cosmos = CosmosDB(config)
-    cosmos.initialize()
