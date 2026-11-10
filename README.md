@@ -41,3 +41,7 @@ python main.py
 
 - `add_data.py` は、このままでは動きません。読み込むファイルが `./data/text.txt` になっている（実際は `data/text.md`）ことと、`CosmosDB` に無い `initialize()` を呼んでいる（あるのは `container_initialize()`）ためです。
 - 検索の件数を絞らず、近い順にも並べていません（クエリに `TOP` と `ORDER BY` が無い）。保存した全件に距離を付けて返します。
+
+## ライセンス
+
+[MIT](LICENSE)
